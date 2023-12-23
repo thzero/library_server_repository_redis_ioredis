@@ -37,7 +37,7 @@ export default () => {
 		},
 		{
 			category: 'server',
-			name: 'mongodb',
+			name: 'ioredis',
 			url: 'https://github.com/redis/ioredis',
 			licenseName: 'MIT',
 			licenseUrl: 'https://github.com/redis/ioredis/blob/main/LICENSE'
