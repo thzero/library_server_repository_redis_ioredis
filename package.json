@@ -1,11 +1,11 @@
 {
   "name": "@thzero/library_server_repository_redis_ioredis",
   "type": "module",
-  "version": "0.17.3",
+  "version": "0.18.0",
   "version_major": 0,
-  "version_minor": 17,
-  "version_patch": 3,
-  "version_date": "01/01/2024",
+  "version_minor": 18,
+  "version_patch": 0,
+  "version_date": "02/24/2024",
   "author": "thZero",
   "license": "MIT",
   "repository": {
@@ -27,9 +27,9 @@
     "ioredis": "^5.3.2"
   },
   "peerDependencies": {
-    "@thzero/library_common": "^0.17",
-    "@thzero/library_common_service": "^0.17",
-    "@thzero/library_server": "^0.17",
-    "@thzero/library_server_repository_redis": "^0.17"
+    "@thzero/library_common": "^0.18",
+    "@thzero/library_common_service": "^0.18",
+    "@thzero/library_server": "^0.18",
+    "@thzero/library_server_repository_redis": "^0.18"
   }
 }
