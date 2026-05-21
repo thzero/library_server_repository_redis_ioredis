@@ -7,6 +7,8 @@
   "version_patch": 17,
   "version_date": "04/21/2026",
   "author": "thZero",
+  "author_url": "https://www.thzero.com",
+  "copyright": "2020-2026",
   "license": "MIT",
   "repository": {
     "type": "git",
