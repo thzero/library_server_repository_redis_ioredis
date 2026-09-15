@@ -4,8 +4,8 @@ import RedisRepository from '@thzero/library_server_repository_redis/index.js';
 
 class IoredisRedisRepository extends RedisRepository {
 	async _initializeClientConnection(correlationId, connectionInfo, clientName, config) {
-		this._enforceNotNull('RedisRepository', '_initializeClientConnection', 'connectionInfo', connectionInfo, correlationId);
-		this._enforceNotEmpty('RedisRepository', '_initializeClientConnection', 'clientName', clientName, correlationId);
+		this._enforceNotNull('RedisRepository', '_initializeClientConnection', connectionInfo, 'connectionInfo', correlationId);
+		this._enforceNotEmpty('RedisRepository', '_initializeClientConnection', clientName, 'clientName', correlationId);
 
 		let client = null;
 		if (connectionInfo.port) {
@@ -21,7 +21,7 @@ class IoredisRedisRepository extends RedisRepository {
 		else
 			client = new Redis(connectionInfo, { enableReadyCheck: false });
 
-		this._enforceNotEmpty('RedisRepository', '_initializeClient', 'client', client, correlationId);
+		this._enforceNotEmpty('RedisRepository', '_initializeClient', client, 'client', correlationId);
 		return client;
 	}
 }
