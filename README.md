@@ -35,16 +35,25 @@ npm install @thzero/library_server_repository_redis_ioredis
 
 ## What it provides
 
-`index.js` — default export `IoredisRedisRepository`, extending `RedisRepository`. It implements `_initializeClientConnection(correlationId, connectionInfo, clientName, config)` and nothing else; everything in the base is inherited unchanged.
+`index.js` — default export `IoredisRedisRepository`, extending `RedisRepository`. It implements `_initializeClientConnection(correlationId, connectionInfo, clientName, config)` and the base's driver primitives, `_command` and `_transaction`, so the base's stream and lock methods work on ioredis. Both send each command through ioredis's own method for it when there is one (`client.xread(...)`), falling back to `client.call(...)`: on a RESP3 connection those methods turn map replies into the arrays the base expects.
 
 Two connection shapes are supported, chosen by whether `connectionInfo.port` is set:
 
 | `connectionInfo` | Built as |
 |---|---|
-| has a `port` | `new Redis({ port, host, username, password, db, enableReadyCheck: false })` |
-| anything else | `new Redis(connectionInfo, { enableReadyCheck: false })` — so a connection string or a full ioredis options object passes straight through |
+| has a `port` | `new Redis({ ...options, port, host, username, password, db })` |
+| anything else | `new Redis(connectionInfo, options)`, so a connection string or a full ioredis options object passes straight through |
 
-`enableReadyCheck` is forced to `false` in both cases. Some managed Redis providers do not permit the `INFO` command that the ready check issues.
+`options` is `{ enableReadyCheck: false }` plus whatever `_clientOptions(correlationId, clientName, config)` returns (nothing by default). Some managed Redis providers do not permit the `INFO` command that the ready check issues. Override `_clientOptions` to set ioredis options per client name, since each name is a connection of its own:
+
+```js
+class JobsRepository extends BaseRedisRepository {
+    _clientOptions(correlationId, clientName, config) {
+        // commands wait through an outage instead of failing; a blocking reader gets no command timeout
+        return clientName === 'jobsReader' ? { maxRetriesPerRequest: null } : { maxRetriesPerRequest: null, commandTimeout: 5000 };
+    }
+}
+```
 
 `openSource.js` — a default-exported function returning the licence manifest for this package and its dependencies, for an application's open-source attribution page.
 
@@ -95,7 +104,7 @@ Register it with the injector from `_initRepositories` in your `BootMain` derive
 
 ### A note on error handling
 
-`_initializeClientConnection` returns the client as ioredis constructs it, with no `error` listener attached. ioredis emits `error` on a failed or dropped connection, and an unhandled `error` event terminates the process — attach a handler in your subclass if you want the application to survive Redis being unreachable.
+Each client gets an `error` listener that hands the error to `_clientError(clientName, err)`, which logs a warning; ioredis reconnects by itself. Override `_clientError` to report it differently. Without a listener, ioredis would report every failed connection attempt as an unhandled error.
 
 ## Development
 
