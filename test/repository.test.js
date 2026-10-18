@@ -62,6 +62,63 @@ describe('_initializeClientConnection', () => {
 	});
 });
 
+describe('_clientOptions', () => {
+	it('adds a subclass\'s options for the client by name, on both connection shapes', async () => {
+		repository._clientOptions = (correlationId, clientName) => clientName === 'reader' ? { maxRetriesPerRequest: null, commandTimeout: 7 } : { keepAlive: 5 };
+		const clients = [
+			await repository._initializeClientConnection('cid', { host: '127.0.0.1', port: 6399 }, 'reader'),
+			await repository._initializeClientConnection('cid', 'redis://127.0.0.1:6399', 'redis')
+		];
+		try {
+			assert.equal(clients[0].options.maxRetriesPerRequest, null);
+			assert.equal(clients[0].options.commandTimeout, 7);
+			assert.equal(clients[0].options.port, 6399);
+			assert.equal(clients[1].options.keepAlive, 5);
+			assert.equal(clients[1].options.enableReadyCheck, false);
+		}
+		finally {
+			clients.forEach(close);
+		}
+	});
+
+	it('listens for errors, through _clientError', async () => {
+		const errors = [];
+		repository._clientError = (clientName, err) => errors.push([ clientName, err.message ]);
+		const client = await repository._initializeClientConnection('cid', { host: '127.0.0.1', port: 6399 }, 'redis');
+		try {
+			client.emit('error', new Error('down'));
+			assert.deepEqual(errors, [ [ 'redis', 'down' ] ]);
+		}
+		finally {
+			close(client);
+		}
+	});
+});
+
+describe('driver primitives', () => {
+	it('_command sends the command by name', async () => {
+		const client = { call: async (...args) => args };
+		assert.deepEqual(await repository._command(client, 'XADD', 's', '*', 'a', 1), [ 'XADD', 's', '*', 'a', 1 ]);
+	});
+
+	it('_command prefers ioredis\'s own method for the command, which shapes its reply', async () => {
+		const client = { xread: async (...args) => [ 'named', ...args ], call: async () => 'raw' };
+		assert.deepEqual(await repository._command(client, 'XREAD', 'STREAMS', 's', '0-0'), [ 'named', 'STREAMS', 's', '0-0' ]);
+	});
+
+	it('_transaction sends them in one MULTI and returns the replies', async () => {
+		const queued = [];
+		const client = { multi: () => ({ call: (...args) => queued.push(args), exec: async () => queued.map((args, i) => [ null, `${i + 1}-0` ]) }) };
+		assert.deepEqual(await repository._transaction(client, [ [ 'XADD', 's', '*', 'a', 1 ], [ 'XADD', 's', '*', 'b', 2 ] ]), [ '1-0', '2-0' ]);
+		assert.deepEqual(queued, [ [ 'XADD', 's', '*', 'a', 1 ], [ 'XADD', 's', '*', 'b', 2 ] ]);
+	});
+
+	it('_transaction rejects with a command\'s error', async () => {
+		const client = { multi: () => ({ call: () => {}, exec: async () => [ [ null, 'OK' ], [ new Error('WRONGTYPE'), null ] ] }) };
+		await assert.rejects(() => repository._transaction(client, [ [ 'SET', 'a', 1 ], [ 'XADD', 'a', '*', 'b', 2 ] ]), /WRONGTYPE/);
+	});
+});
+
 describe('openSource', () => {
 	it('lists every package this repository pulls in', () => {
 		const names = openSource().map(entry => entry.name);
